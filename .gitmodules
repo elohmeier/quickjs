@@ -1,3 +1,4 @@
 [submodule "upstream-quickjs"]
 	path = upstream-quickjs
-	url = https://github.com/bellard/quickjs.git
+	url = https://github.com/quickjs-ng/quickjs.git
+	branch = master

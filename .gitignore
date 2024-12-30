@@ -4,3 +4,5 @@ dist
 quickjs.egg-info
 *.so
 *.pyd
+.aider*
+.env

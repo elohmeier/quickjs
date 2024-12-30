@@ -281,7 +281,7 @@ static void quickjs_exception_to_python(JSContext *context) {
 	}
 	if (cstring != NULL) {
 		const char *safe_stack_cstring = stack_cstring ? stack_cstring : "";
-		if (strstr(cstring, "stack overflow") != NULL) {
+		if (strstr(cstring, "Maximum call stack size exceeded") != NULL) {
 			PyErr_Format(StackOverflow, "%s\n%s", cstring, safe_stack_cstring);
 		} else {
 			PyErr_Format(JSException, "%s\n%s", cstring, safe_stack_cstring);
@@ -290,8 +290,7 @@ static void quickjs_exception_to_python(JSContext *context) {
 		// This has been observed to happen when different threads have used the same QuickJS
 		// runtime, but not at the same time.
 		// Could potentially be another problem though, since JS_ToCString may return NULL.
-		PyErr_Format(JSException,
-					 "(Failed obtaining QuickJS error string. Concurrency issue?)");
+		PyErr_Format(JSException, "(Failed obtaining QuickJS error string. Concurrency issue?)");
 	}
 	JS_FreeCString(context, cstring);
 	JS_FreeCString(context, stack_cstring);
@@ -408,8 +407,11 @@ static void js_python_function_finalizer(JSRuntime *rt, JSValue val) {
 	};
 }
 
-static JSValue js_python_function_call(JSContext *ctx, JSValueConst func_obj,
-                                       JSValueConst this_val, int argc, JSValueConst *argv,
+static JSValue js_python_function_call(JSContext *ctx,
+                                       JSValueConst func_obj,
+                                       JSValueConst this_val,
+                                       int argc,
+                                       JSValueConst *argv,
                                        int flags) {
 	RuntimeData *runtime_data = (RuntimeData *)JS_GetRuntimeOpaque(JS_GetRuntime(ctx));
 	PythonCallableNode *node = JS_GetOpaque(func_obj, js_python_function_class_id);
@@ -458,9 +460,9 @@ static JSValue js_python_function_call(JSContext *ctx, JSValueConst func_obj,
 }
 
 static JSClassDef js_python_function_class = {
-	"PythonFunction",
-	.finalizer = js_python_function_finalizer,
-	.call = js_python_function_call,
+    "PythonFunction",
+    .finalizer = js_python_function_finalizer,
+    .call = js_python_function_call,
 };
 
 // Creates an instance of the _quickjs.Context class.
@@ -471,8 +473,8 @@ static PyObject *runtime_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 		// _quickjs.Context can be used concurrently.
 		self->runtime = JS_NewRuntime();
 		self->context = JS_NewContext(self->runtime);
-		JS_NewClass(self->runtime, js_python_function_class_id,
-		            &js_python_function_class);
+		JS_NewClassID(self->runtime, &js_python_function_class_id);
+		JS_NewClass(self->runtime, js_python_function_class_id, &js_python_function_class);
 		JSValue global = JS_GetGlobalObject(self->context);
 		JSValue fct_cls = JS_GetPropertyStr(self->context, global, "Function");
 		JSValue fct_proto = JS_GetPropertyStr(self->context, fct_cls, "prototype");
@@ -695,7 +697,6 @@ static PyObject *runtime_gc(RuntimeData *self) {
 	Py_RETURN_NONE;
 }
 
-
 static PyObject *runtime_add_callable(RuntimeData *self, PyObject *args) {
 	const char *name;
 	PyObject *callable;
@@ -713,7 +714,8 @@ static PyObject *runtime_add_callable(RuntimeData *self, PyObject *args) {
 		return NULL;
 	}
 	// TODO: Should we allow setting the .length of the function to something other than 0?
-	JS_DefinePropertyValueStr(self->context, function, "name", JS_NewString(self->context, name), JS_PROP_CONFIGURABLE);
+	JS_DefinePropertyValueStr(
+	    self->context, function, "name", JS_NewString(self->context, name), JS_PROP_CONFIGURABLE);
 	PythonCallableNode *node = PyMem_Malloc(sizeof(PythonCallableNode));
 	if (!node) {
 		JS_FreeValue(self->context, function);
@@ -746,14 +748,12 @@ static PyObject *runtime_add_callable(RuntimeData *self, PyObject *args) {
 	}
 }
 
-
 // _quickjs.Context.globalThis
 //
 // Global object of the JS context.
 static PyObject *runtime_global_this(RuntimeData *self, void *closure) {
 	return quickjs_to_python(self, JS_GetGlobalObject(self->context));
 }
-
 
 // All methods of the _quickjs.Context class.
 static PyMethodDef runtime_methods[] = {
@@ -762,7 +762,10 @@ static PyMethodDef runtime_methods[] = {
      (PyCFunction)runtime_module,
      METH_VARARGS,
      "Evaluates a Javascript string as a module."},
-    {"execute_pending_job", (PyCFunction)runtime_execute_pending_job, METH_NOARGS, "Executes a pending job."},
+    {"execute_pending_job",
+     (PyCFunction)runtime_execute_pending_job,
+     METH_NOARGS,
+     "Executes a pending job."},
     {"parse_json", (PyCFunction)runtime_parse_json, METH_VARARGS, "Parses a JSON string."},
     {"get", (PyCFunction)runtime_get, METH_VARARGS, "Gets a Javascript global variable."},
     {"set", (PyCFunction)runtime_set, METH_VARARGS, "Sets a Javascript global variable."},
@@ -831,8 +834,6 @@ PyMODINIT_FUNC PyInit__quickjs(void) {
 	if (module == NULL) {
 		return NULL;
 	}
-
-	JS_NewClassID(&js_python_function_class_id);
 
 	JSException = PyErr_NewException("_quickjs.JSException", NULL, NULL);
 	if (JSException == NULL) {

@@ -1,11 +1,9 @@
 [project]
 name = "quickjs"
-version = "0.1.0"
+version = "1.19.4"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "Enno Richter", email = "enno@nerdworks.de" }
-]
+authors = [{ name = "Enno Richter", email = "enno@nerdworks.de" }]
 requires-python = ">=3.12"
 dependencies = []
 

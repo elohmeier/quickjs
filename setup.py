@@ -1,10 +1,9 @@
-import glob
 import sys
 from typing import List
 
 from setuptools import Extension, setup
 
-CONFIG_VERSION = open("upstream-quickjs/VERSION").read().strip()
+CONFIG_VERSION = "0.8.0"
 extra_link_args: List[str] = []
 
 if sys.platform == "win32":
@@ -42,9 +41,9 @@ def get_c_sources(include_headers=False):
             "upstream-quickjs/libunicode.h",
             "upstream-quickjs/list.h",
             "upstream-quickjs/quickjs-atom.h",
+            "upstream-quickjs/quickjs-c-atomics.h",
             "upstream-quickjs/quickjs-opcode.h",
             "upstream-quickjs/quickjs.h",
-            "upstream-quickjs/VERSION",
         ]
     return sources
 

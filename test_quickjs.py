@@ -71,7 +71,9 @@ class Context(unittest.TestCase):
         """)
 
     def test_error(self):
-        with self.assertRaisesRegex(quickjs.JSException, "ReferenceError: 'missing' is not defined"):
+        with self.assertRaisesRegex(
+            quickjs.JSException, "ReferenceError: missing is not defined"
+        ):
             self.context.eval("missing + missing")
 
     def test_lifetime(self):
@@ -105,8 +107,8 @@ class Context(unittest.TestCase):
         else:
             self.fail("Expected exception.")
 
-        self.assertIn("at funcA (<input>:3)\n", msg)
-        self.assertIn("at funcB (<input>:6)\n", msg)
+        self.assertIn("at funcA (<input>:2:35)\n", msg)
+        self.assertIn("at funcB (<input>:6:21)\n", msg)
 
     def test_memory_limit(self):
         code = """
@@ -220,6 +222,7 @@ class CallIntoPython(unittest.TestCase):
             f = ctx.get("f")
             del ctx
             return f
+
         gc.collect()
         f = make()
         self.assertEqual(f(), 1)
@@ -253,6 +256,7 @@ class CallIntoPython(unittest.TestCase):
 
     def test_make_function_two_string_args(self):
         """Without the JS_DupValue in js_c_function, this test crashes."""
+
         def concat(a, b):
             return a + "-" + b
 
@@ -395,39 +399,47 @@ class Object(unittest.TestCase):
         context2 = quickjs.Context()
         f = context1.eval("(function(x) { return x.a; })")
         d = context2.eval("({a: 1})")
-        with self.assertRaisesRegex(ValueError, "Can not mix JS objects from different contexts."):
+        with self.assertRaisesRegex(
+            ValueError, "Can not mix JS objects from different contexts."
+        ):
             f(d)
 
 
 class FunctionTest(unittest.TestCase):
     def test_adder(self):
         f = quickjs.Function(
-            "adder", """
+            "adder",
+            """
             function adder(x, y) {
                 return x + y;
             }
-            """)
+            """,
+        )
         self.assertEqual(f(1, 1), 2)
         self.assertEqual(f(100, 200), 300)
         self.assertEqual(f("a", "b"), "ab")
 
     def test_identity(self):
         identity = quickjs.Function(
-            "identity", """
+            "identity",
+            """
             function identity(x) {
                 return x;
             }
-            """)
+            """,
+        )
         for x in [True, [1], {"a": 2}, 1, 1.5, "hej", None]:
             self.assertEqual(identity(x), x)
 
     def test_bool(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(x) {
                 return [typeof x ,!x];
             }
-            """)
+            """,
+        )
         self.assertEqual(f(False), ["boolean", True])
         self.assertEqual(f(True), ["boolean", False])
 
@@ -437,27 +449,32 @@ class FunctionTest(unittest.TestCase):
 
     def test_lists(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(arr) {
                 const result = [];
                 arr.forEach(function(elem) {
                     result.push(elem + 42);
                 });
                 return result;
-            }""")
+            }""",
+        )
         self.assertEqual(f([0, 1, 2]), [42, 43, 44])
 
     def test_dict(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(obj) {
                 return obj.data;
-            }""")
+            }""",
+        )
         self.assertEqual(f({"data": {"value": 42}}), {"value": 42})
 
     def test_time_limit(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f() {
                 let arr = [];
                 for (let i = 0; i < 100000; ++i) {
@@ -465,7 +482,8 @@ class FunctionTest(unittest.TestCase):
                 }
                 return arr;
             }
-        """)
+        """,
+        )
         f()
         f.set_time_limit(0)
         with self.assertRaisesRegex(quickjs.JSException, "InternalError: interrupted"):
@@ -475,7 +493,8 @@ class FunctionTest(unittest.TestCase):
 
     def test_garbage_collection(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f() {
                 let a = {};
                 let b = {};
@@ -484,7 +503,8 @@ class FunctionTest(unittest.TestCase):
                 a.i = 42;
                 return a.i;
             }
-        """)
+        """,
+        )
         initial_count = f.memory()["obj_count"]
         for i in range(10):
             prev_count = f.memory()["obj_count"]
@@ -497,7 +517,8 @@ class FunctionTest(unittest.TestCase):
 
     def test_deep_recursion(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(v) {
                 if (v <= 0) {
                     return 0;
@@ -505,10 +526,11 @@ class FunctionTest(unittest.TestCase):
                     return 1 + f(v - 1);
                 }
             }
-        """)
+        """,
+        )
 
         self.assertEqual(f(100), 100)
-        limit = 500
+        limit = 5000
         with self.assertRaises(quickjs.StackOverflow):
             f(limit)
         f.set_max_stack_size(2000 * limit)
@@ -516,18 +538,21 @@ class FunctionTest(unittest.TestCase):
 
     def test_add_callable(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f() {
                 return pfunc();
             }
-        """)
+        """,
+        )
         f.add_callable("pfunc", lambda: 42)
 
         self.assertEqual(f(), 42)
 
     def test_execute_pending_job(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             obj = {x: 0, y: 0};
             async function a() {
                 obj.x = await 1;
@@ -537,7 +562,8 @@ class FunctionTest(unittest.TestCase):
             function f() {
                 return obj.x + obj.y;
             }
-        """)
+        """,
+        )
         self.assertEqual(f(), 0)
         self.assertEqual(f.execute_pending_job(), True)
         self.assertEqual(f(), 1)
@@ -547,10 +573,12 @@ class FunctionTest(unittest.TestCase):
 
     def test_global(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f() {
             }
-        """)
+        """,
+        )
         self.assertTrue(isinstance(f.globalThis, quickjs.Object))
         with self.assertRaises(AttributeError):
             f.globalThis = 1
@@ -559,11 +587,13 @@ class FunctionTest(unittest.TestCase):
 class JavascriptFeatures(unittest.TestCase):
     def test_unicode_strings(self):
         identity = quickjs.Function(
-            "identity", """
+            "identity",
+            """
             function identity(x) {
                 return x;
             }
-            """)
+            """,
+        )
         context = quickjs.Context()
         for x in ["äpple", "≤≥", "☺"]:
             self.assertEqual(identity(x), x)
@@ -571,22 +601,26 @@ class JavascriptFeatures(unittest.TestCase):
 
     def test_es2020_optional_chaining(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(x) {
                 return x?.one?.two;
             }
-        """)
+        """,
+        )
         self.assertIsNone(f({}))
         self.assertIsNone(f({"one": 12}))
         self.assertEqual(f({"one": {"two": 42}}), 42)
 
     def test_es2020_null_coalescing(self):
         f = quickjs.Function(
-            "f", """
+            "f",
+            """
             function f(x) {
                 return x ?? 42;
             }
-        """)
+        """,
+        )
         self.assertEqual(f(""), "")
         self.assertEqual(f(0), 0)
         self.assertEqual(f(11), 11)
@@ -609,7 +643,8 @@ class JavascriptFeatures(unittest.TestCase):
     def test_bigint(self):
         context = quickjs.Context()
         self.assertEqual(context.eval(f"BigInt('{10**100}')"), 10**100)
-        self.assertEqual(context.eval(f"BigInt('{-10**100}')"), -10**100)
+        self.assertEqual(context.eval(f"BigInt('{-10**100}')"), -(10**100))
+
 
 class Threads(unittest.TestCase):
     def setUp(self):
@@ -621,17 +656,19 @@ class Threads(unittest.TestCase):
 
     def test_concurrent(self):
         """Demonstrates that the execution will crash unless the function executes on the same
-           thread every time.
+        thread every time.
 
-           If the executor in Function is not present, this test will fail.
+        If the executor in Function is not present, this test will fail.
         """
         data = list(range(1000))
         jssum = quickjs.Function(
-            "sum", """
+            "sum",
+            """
                 function sum(data) {
                     return data.reduce((a, b) => a + b, 0)
                 }
-            """)
+            """,
+        )
 
         futures = [self.executor.submit(jssum, data) for _ in range(10)]
         expected = sum(data)
@@ -640,28 +677,34 @@ class Threads(unittest.TestCase):
 
     def test_concurrent_own_executor(self):
         data = list(range(1000))
-        jssum1 = quickjs.Function("sum",
-                                  """
+        jssum1 = quickjs.Function(
+            "sum",
+            """
                                     function sum(data) {
                                         return data.reduce((a, b) => a + b, 0)
                                     }
                                   """,
-                                  own_executor=True)
-        jssum2 = quickjs.Function("sum",
-                                  """
+            own_executor=True,
+        )
+        jssum2 = quickjs.Function(
+            "sum",
+            """
                                     function sum(data) {
                                         return data.reduce((a, b) => a + b, 0)
                                     }
                                   """,
-                                  own_executor=True)
+            own_executor=True,
+        )
 
-        futures = [self.executor.submit(f, data) for _ in range(10) for f in (jssum1, jssum2)]
+        futures = [
+            self.executor.submit(f, data) for _ in range(10) for f in (jssum1, jssum2)
+        ]
         expected = sum(data)
         for future in concurrent.futures.as_completed(futures):
             self.assertEqual(future.result(), expected)
 
 
-class QJS(object):
+class QJS:
     def __init__(self):
         self.interp = quickjs.Context()
         self.interp.eval('var foo = "bar";')
@@ -672,4 +715,4 @@ class QuickJSContextInClass(unittest.TestCase):
         # This used to give stack overflow internal error, due to how QuickJS calculates stack
         # frames. Passes with the 2021-03-27 release.
         qjs = QJS()
-        self.assertEqual(qjs.interp.eval('2+2'), 4)
+        self.assertEqual(qjs.interp.eval("2+2"), 4)
